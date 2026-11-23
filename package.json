@@ -1,0 +1,32 @@
+{
+  "name": "field-tracker",
+  "version": "1.0.0",
+  "description": "TMI-103 IoT Animal Tracking Collar \u2014 Capacitor Android wrapper",
+  "scripts": {
+    "build": "node scripts/build-web.cjs",
+    "cap:add:android": "npm run build && node node_modules/@capacitor/cli/bin/capacitor add android",
+    "cap:sync": "npm run build && node node_modules/@capacitor/cli/bin/capacitor sync android",
+    "cap:open": "node node_modules/@capacitor/cli/bin/capacitor open android",
+    "apk:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug && cd .. && node scripts/export-apk.cjs",
+    "apk:export": "node scripts/export-apk.cjs"
+  },
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@capacitor-community/fcm": "^6.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "esbuild": "^0.28.2",
+    "node": "^22.23.5"
+  },
+  "keywords": [
+    "iot",
+    "gps",
+    "animal-tracking",
+    "esp32",
+    "capacitor"
+  ],
+  "license": "MIT"
+}

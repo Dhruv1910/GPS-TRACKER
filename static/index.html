@@ -1,14 +1,230 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TMI-103 · Field tracker</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<style>
-*{box-sizing:border-box}body{margin:0;background:#f2f5f2;color:#162d25;font:16px system-ui,sans-serif}header{padding:22px 5%;background:#123c32;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:16px}h1{margin:3px 0;font-size:26px}.eyebrow{font-size:12px;letter-spacing:2px;color:#b8dbcd}.badge{border:1px solid #89b2a2;padding:7px 12px;border-radius:30px;font-size:13px}main{max-width:1400px;margin:auto;padding:22px 5%}.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-bottom:16px}button,input,select{font:inherit;padding:9px 12px;border:1px solid #b1c6bc;border-radius:7px}button{background:#fff;cursor:pointer}button.primary{background:#17644c;color:white}input[type=password]{max-width:100%;width:300px}input[type=checkbox]{accent-color:#17644c}.layout{display:grid;grid-template-columns:1fr 270px;gap:18px}#map{height:65vh;min-height:380px;border-radius:12px;border:1px solid #c7d8cf}.panel{background:white;border:1px solid #d5e0d9;border-radius:12px;padding:20px}dl{margin:0}dt{font-size:12px;color:#597066;margin-top:20px}dt:first-child{margin-top:0}dd{margin:5px 0;font-weight:600;overflow-wrap:anywhere}.note{font-size:13px;line-height:1.6;color:#597066}#status{font-weight:700;margin-bottom:15px}#map-note{font-size:13px;color:#7b4d18}footer{margin-top:16px;font-size:13px;color:#597066}@media(max-width:760px){.layout{grid-template-columns:1fr}#map{height:52vh}.panel dl{display:grid;grid-template-columns:1fr 1fr;gap:6px}dt,dt:first-child{margin:8px 0}dd{margin:8px 0}header{align-items:flex-start}.badge{white-space:nowrap}}
-</style></head><body>
-<header><div><div class="eyebrow">TMI-103 / TELEMETRY</div><h1>Field tracker</h1></div><span class="badge">Single device</span></header>
-<main><form id="login" class="toolbar"><input id="token" type="password" placeholder="Enter viewer token" aria-label="Viewer token" autocomplete="off" required><button class="primary">Connect</button><button type="button" id="logout">Disconnect</button></form>
-<div class="toolbar"><label><input type="checkbox" id="follow" checked> Follow device</label><button id="recentre">Recentre</button><label>View <select id="scale"><option value="campus">Campus</option><option value="city">City</option><option value="region">100 km radius area</option></select></label></div>
-<div class="layout"><div><div id="map"></div><p id="map-note"></p></div><aside class="panel"><div id="status" role="status">Enter viewer token</div><dl><dt>Latitude, longitude</dt><dd id="coords">—</dd><dt>GPS measurement (UTC)</dt><dd id="fix-time">—</dd><dt>Position age</dt><dd id="age">—</dd><dt>Last device contact</dt><dd id="contact">—</dd><dt>Satellites / HDOP</dt><dd id="quality">—</dd><dt>Speed / altitude</dt><dd id="motion">—</dd><dt>Motion sensor</dt><dd id="imu">—</dd><dt>Fix assessment</dt><dd id="reason">—</dd></dl><p class="note">A marker is a reported position, not an exact ground-truth location. Grey means old data. HDOP is not an error radius in metres.</p></aside></div>
-<footer>Location access requires your viewer token. Map tiles load from OpenStreetMap; its provider can see the viewed area. Latest position only; no route history is stored.</footer></main>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-<script src="/static/map.js"></script></body></html> 
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>TMI-103 · Field Tracker</title>
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin="">
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; }
+    body   { margin: 0; background: #f2f5f2; color: #162d25; font: 16px system-ui, sans-serif; }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      padding: 18px 5%;
+      background: #123c32;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1       { margin: 3px 0; font-size: 24px; }
+    .eyebrow { font-size: 11px; letter-spacing: 2px; color: #b8dbcd; }
+    .badges  { display: flex; gap: 8px; flex-wrap: wrap; }
+    .badge   { border: 1px solid #89b2a2; padding: 6px 11px; border-radius: 30px; font-size: 12px; white-space: nowrap; }
+
+    /* ── Main layout ──────────────────────────────────────────────── */
+    main      { max-width: 1400px; margin: auto; padding: 20px 5%; }
+    .toolbar  { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
+    button, input, select { font: inherit; padding: 8px 11px; border: 1px solid #b1c6bc; border-radius: 7px; }
+    button          { background: #fff; cursor: pointer; }
+    button.primary  { background: #17644c; color: #fff; border-color: #17644c; }
+    button.primary:hover { background: #0f4d38; }
+    input[type=password] { max-width: 100%; width: 290px; }
+    input[type=checkbox] { accent-color: #17644c; }
+
+    .layout { display: grid; grid-template-columns: 1fr 285px; gap: 16px; }
+
+    /* ── Map ──────────────────────────────────────────────────────── */
+    #map {
+      height: 65vh; min-height: 360px;
+      border-radius: 12px;
+      border: 1px solid #c7d8cf;
+    }
+    #map-note { font-size: 13px; color: #7b4d18; min-height: 1.5em; }
+
+    /* ── Side panel ───────────────────────────────────────────────── */
+    .panel { background: #fff; border: 1px solid #d5e0d9; border-radius: 12px; padding: 18px; }
+    dl { margin: 0; }
+    dt { font-size: 11px; color: #597066; margin-top: 16px; text-transform: uppercase; letter-spacing: .5px; }
+    dt:first-child { margin-top: 0; }
+    dd { margin: 4px 0; font-weight: 600; overflow-wrap: anywhere; }
+    .note { font-size: 12px; line-height: 1.6; color: #597066; margin-top: 14px; }
+    #status { font-weight: 700; margin-bottom: 14px; }
+
+    /* ── Activity badge colours ───────────────────────────────────── */
+    .act-resting  { color: #3b6eb5; }
+    .act-grazing  { color: #7a5c00; }
+    .act-moving   { color: #17644c; }
+
+    /* ── Geofence status ──────────────────────────────────────────── */
+    .geo-inside  { color: #17644c; }
+    .geo-outside { color: #c0392b; font-weight: 700; animation: flash 1s step-start infinite; }
+    @keyframes flash { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+    /* ── Location source pill ─────────────────────────────────────── */
+    .src-gps    { background: #e6f4ee; color: #17644c; }
+    .src-hybrid { background: #fff3cd; color: #7a5c00; }
+    .src-wifi   { background: #e8f0fe; color: #1a56db; }
+    .loc-pill   { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+    footer { margin-top: 14px; font-size: 12px; color: #597066; }
+
+    .geofence-editor { margin-top: 18px; padding-top: 16px; border-top: 1px solid #d5e0d9; }
+    .geofence-editor h2 { font-size: 17px; margin: 0 0 10px; }
+    .geofence-editor label { display: block; margin: 10px 0; font-size: 13px; }
+    .geofence-editor input { display: block; width: 100%; margin-top: 4px; }
+    .geofence-editor .toolbar { gap: 8px; }
+    button:disabled { opacity: .55; cursor: default; }
+    #geofence-message { min-height: 2em; }
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 760px) {
+      .layout { grid-template-columns: 1fr; }
+      #map { height: 50vh; }
+      .panel dl { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+      dt, dt:first-child { margin: 6px 0; }
+      dd { margin: 6px 0; }
+      header { align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">TMI-103 / TELEMETRY</div>
+    <h1>Field Tracker</h1>
+    <div id="tracker-name">animal-01</div>
+  </div>
+  <div class="badges">
+    <span class="badge">BNO055 IMU</span>
+    <span class="badge">GPS + Wi-Fi</span>
+  </div>
+</header>
+
+<main>
+  <!-- Login bar -->
+  <form id="login" class="toolbar">
+    <input id="token" type="password" placeholder="Enter viewer token"
+           aria-label="Viewer token" autocomplete="off" required>
+    <button class="primary">Connect</button>
+    <button type="button" id="logout">Disconnect</button>
+  </form>
+
+  <p id="login-note" class="note" role="status" aria-live="polite">Login is remembered on this device until you disconnect.</p>
+
+  <form id="tracker-form" aria-label="Tracker settings">
+    <fieldset id="tracker-fields" disabled class="toolbar" style="border:0;padding:0;min-width:0">
+      <label for="tracker-name-input">Tracker name</label>
+      <input id="tracker-name-input" type="text" value="animal-01" maxlength="64" required autocomplete="off">
+      <button class="primary">Save name</button>
+    </fieldset>
+    <p id="tracker-message" class="note" role="status" aria-live="polite">Connect to name your tracker. This name appears in alerts.</p>
+  </form>
+
+  <!-- Map controls -->
+  <div class="toolbar">
+    <label><input type="checkbox" id="follow" checked> Follow device</label>
+    <button id="recentre">Re-centre</button>
+    <label>View&nbsp;
+      <select id="scale">
+        <option value="campus">Campus</option>
+        <option value="city">City</option>
+        <option value="region">100 km radius</option>
+      </select>
+    </label>
+  </div>
+
+  <!-- Map + side panel -->
+  <div class="layout">
+    <div>
+      <div id="map"></div>
+      <p id="map-note"></p>
+    </div>
+
+    <aside class="panel">
+      <div id="status" role="status">Enter viewer token to connect</div>
+      <dl>
+        <dt>Latitude, longitude</dt>
+        <dd id="coords">—</dd>
+
+        <dt>Location source</dt>
+        <dd id="loc-src">—</dd>
+
+        <dt>Activity state</dt>
+        <dd id="activity">—</dd>
+
+        <dt>Distance from safe zone</dt>
+        <dd id="geo-dist">—</dd>
+
+        <dt>GPS measurement (UTC)</dt>
+        <dd id="fix-time">—</dd>
+
+        <dt>Position age</dt>
+        <dd id="age">—</dd>
+
+        <dt>Last device contact</dt>
+        <dd id="contact">—</dd>
+
+        <dt>Satellites / HDOP</dt>
+        <dd id="quality">—</dd>
+
+        <dt>Speed / Altitude</dt>
+        <dd id="motion">—</dd>
+
+        <dt>IMU sensor</dt>
+        <dd id="imu">—</dd>
+
+        <dt>Fix assessment</dt>
+        <dd id="reason">—</dd>
+      </dl>
+      <p class="note">
+        A marker shows the resolved position (GPS&nbsp;±&nbsp;Wi-Fi weighted average).
+        Grey = stale data. HDOP is not an error radius in metres.
+      </p>
+      <form id="geofence-form" class="geofence-editor">
+        <h2>Set safe zone</h2>
+        <fieldset id="geofence-fields" disabled style="border:0;padding:0;margin:0;min-width:0">
+          <label>Centre latitude
+            <input id="geofence-lat" type="number" min="-90" max="90" step="any" required>
+          </label>
+          <label>Centre longitude
+            <input id="geofence-lng" type="number" min="-180" max="180" step="any" required>
+          </label>
+          <label>Radius (metres)
+            <input id="geofence-radius" type="number" min="1" max="100000" step="any" required>
+          </label>
+          <div class="toolbar">
+            <button type="button" id="pick-centre" aria-pressed="false">Choose on map</button>
+            <button type="button" id="use-device-centre">Use tracker location</button>
+          </div>
+          <div class="toolbar">
+            <button class="primary" id="save-geofence">Save safe zone</button>
+            <button type="button" id="cancel-geofence">Reset edits</button>
+          </div>
+        </fieldset>
+        <p id="geofence-message" class="note" role="status" aria-live="polite">Connect to edit the safe zone.</p>
+        <p class="note">Changes apply to this tracker for everyone connected. Dashed blue circle = unsaved preview. Alerts require 3 distinct fresh GPS fixes outside. After an alert, return inside the boundary by 10 metres (or 20% of the radius for smaller zones) to reset it. Small zones remain sensitive to GPS drift.</p>
+      </form>
+    </aside>
+  </div>
+
+  <footer>
+    Location access requires your viewer token.
+    Map tiles: OpenStreetMap (tile provider can see the viewed area).
+    Breadcrumb trail = last 20 positions.
+  </footer>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""></script>
+<script src="token-session.js"></script>
+<script src="map.js"></script>
+</body>
+</html>

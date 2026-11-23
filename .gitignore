@@ -1,0 +1,25 @@
+# Local credentials and user settings
+config.local.json
+firebase-admin.json
+**/google-services.json
+**/secrets.h
+.env
+geofence.local.json
+tracker.local.json
+.geofence-*
+.tracker-*
+
+# Dependencies, generated assets, and build outputs
+node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+www/
+**/build/
+android/.gradle/
+android/local.properties
+releases/*.apk
+
+# Editor and operating-system clutter
+.DS_Store
+~$*

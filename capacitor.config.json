@@ -1,0 +1,20 @@
+{
+  "appId": "com.iitr.fieldtracker",
+  "appName": "Field Tracker",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    },
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
+}
