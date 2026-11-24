@@ -7,6 +7,7 @@ async function build() {
   const output = path.join(root, 'www');
   fs.mkdirSync(output, { recursive: true });
   fs.copyFileSync(path.join(root, 'static/index.html'), path.join(output, 'index.html'));
+  fs.copyFileSync(path.join(root, 'static/server-config.js'), path.join(output, 'server-config.js'));
   await esbuild.build({
     entryPoints: [path.join(root, 'static/map.js'), path.join(root, 'static/token-session.js')],
     bundle: true,

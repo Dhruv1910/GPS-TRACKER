@@ -23,3 +23,5 @@ releases/*.apk
 # Editor and operating-system clutter
 .DS_Store
 ~$*
+
+.settings-*

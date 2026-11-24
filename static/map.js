@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 const API_BASE_URL = window.location.protocol === 'file:' ||
   window.Capacitor?.isNativePlatform()
-  ? 'http://10.165.39.84:8000'
+  ? (window.FIELD_TRACKER_API_BASE_URL || 'http://10.165.39.84:8000')
   : '';
 
 // ─────────────────────────────────────────────────────────────────────────────

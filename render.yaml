@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: field-tracker
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --threads 4 --bind 0.0.0.0:$PORT --timeout 120 app:app
+    healthCheckPath: /health
+    envVars:
+      - key: DEVICE_TOKEN
+        sync: false
+      - key: VIEW_TOKEN
+        sync: false
+      - key: SETTINGS_BACKEND
+        value: firestore
+      - key: TRACKER_ID
+        value: animal-01
+      - key: REQUIRE_FCM
+        value: "true"
+      - key: FIREBASE_CREDENTIALS_PATH
+        value: /etc/secrets/firebase-admin.json

@@ -337,3 +337,9 @@ Geofence notifications include the saved name in both the title and body, e.g.
 does not reset geofence confirmation or re-arm an active alert. Re-uploading the
 firmware is not required for a name change. Install the updated APK to edit it
 from the Android app, or refresh the web dashboard.
+
+## Online deployment
+
+See [the cloud deployment guide](docs/cloud-deployment.md) for the prepared
+Render service, persistent Firestore settings, and HTTPS firmware/app cutover.
+The existing local setup continues to use local JSON settings by default.

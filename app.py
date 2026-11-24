@@ -16,13 +16,13 @@ from pathlib import Path
 import math
 import os
 import threading
-import tempfile
 import time
 from collections import deque
 
 from flask import Flask, jsonify, request, send_from_directory, abort
 from flask_cors import CORS
 from geofence_filter import GeofenceFilter
+from settings_store import SettingsStore, SettingsUnavailable
 
 # ---------------------------------------------------------------------------
 # Firebase / FCM — optional; gracefully disabled when creds are absent
@@ -31,8 +31,10 @@ try:
     import firebase_admin
     from firebase_admin import credentials, messaging as fcm_messaging
 
-    _fb_cred_path = os.path.join(
-        os.path.dirname(__file__), "firebase-admin.json"
+    _fb_cred_path = os.environ.get("FIREBASE_CREDENTIALS_PATH") or next(
+        (str(path) for path in [Path(__file__).with_name("firebase-admin.json"),
+                               Path("/etc/secrets/firebase-admin.json")] if path.exists()),
+        str(Path(__file__).with_name("firebase-admin.json"))
     )
     if os.path.exists(_fb_cred_path):
         firebase_admin.initialize_app(
@@ -51,6 +53,19 @@ except ImportError:
         "⚠  firebase-admin not installed — FCM push notifications disabled."
         " pip install firebase-admin to enable them."
     )
+
+if os.environ.get("REQUIRE_FCM", "false").lower() == "true" and not FCM_ENABLED:
+    raise RuntimeError("Firebase credentials are required for this deployment")
+
+_settings_backend = os.environ.get("SETTINGS_BACKEND", "local")
+_firestore_client = None
+if _settings_backend == "firestore":
+    if not FCM_ENABLED:
+        raise RuntimeError("Firestore settings require Firebase credentials")
+    from firebase_admin import firestore
+    _firestore_client = firestore.client()
+settings_store = SettingsStore(_settings_backend, _firestore_client,
+                               os.environ.get("TRACKER_ID", "animal-01"))
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -89,7 +104,7 @@ def load_geofence_settings():
         "home_lng": float(os.environ.get("HOME_LNG", "77.8961")),
         "radius_m": float(os.environ.get("GEOFENCE_RADIUS_METERS", "50")),
     }
-    settings = json.loads(GEOFENCE_SETTINGS_PATH.read_text()) if GEOFENCE_SETTINGS_PATH.exists() else defaults
+    settings = settings_store.load("geofence", GEOFENCE_SETTINGS_PATH, defaults)
     for field, low, high in [("home_lat", -90, 90), ("home_lng", -180, 180), ("radius_m", 1, 100000)]:
         value = settings.get(field)
         if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
@@ -111,7 +126,7 @@ def valid_tracker_name(value):
 
 
 def load_tracker_settings():
-    settings = json.loads(TRACKER_SETTINGS_PATH.read_text()) if TRACKER_SETTINGS_PATH.exists() else {"name": "animal-01"}
+    settings = settings_store.load("tracker", TRACKER_SETTINGS_PATH, {"name": "animal-01"})
     if not valid_tracker_name(settings.get("name")):
         raise ValueError("Invalid saved tracker name")
     return {"name": settings["name"].strip()}
@@ -283,6 +298,11 @@ def index():
 @app.get("/map.js")
 def dashboard_script():
     return send_from_directory("static", "map.js")
+
+
+@app.get("/server-config.js")
+def server_config_script():
+    return send_from_directory("static", "server-config.js")
 
 
 @app.get("/token-session.js")
@@ -468,16 +488,9 @@ def update_geofence():
         "radius_m": number(data, "radius_m", 1, 100000),
     }
     with lock:
-        temporary = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", dir=GEOFENCE_SETTINGS_PATH.parent,
-                                             prefix=".geofence-", delete=False) as output:
-                temporary = Path(output.name)
-                json.dump(settings, output)
-            os.replace(temporary, GEOFENCE_SETTINGS_PATH)
-        except OSError:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
+            settings_store.save("geofence", GEOFENCE_SETTINGS_PATH, settings)
+        except SettingsUnavailable:
             abort(503, description="Could not save the safe zone. Please try again.")
         geofence_settings.update(settings)
         geofence_filter.reset(state["position"]["fix_at"] if state["position"] else None)
@@ -498,16 +511,9 @@ def update_tracker():
         abort(400, description="Tracker name must contain 1–64 characters without control characters.")
     settings = {"name": data["name"].strip()}
     with lock:
-        temporary = None
         try:
-            with tempfile.NamedTemporaryFile(mode="w", dir=TRACKER_SETTINGS_PATH.parent,
-                                             prefix=".tracker-", delete=False) as output:
-                temporary = Path(output.name)
-                json.dump(settings, output)
-            os.replace(temporary, TRACKER_SETTINGS_PATH)
-        except OSError:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)
+            settings_store.save("tracker", TRACKER_SETTINGS_PATH, settings)
+        except SettingsUnavailable:
             abort(503, description="Could not save the tracker name. Please try again.")
         tracker_settings.update(settings)
         result = dict(tracker_settings)
