@@ -5,6 +5,17 @@ Firebase Cloud Messaging for notifications, and Firestore for saved settings.
 The Mac is not part of the deployed data path. The tracker still requires an
 internet connection (campus IoT Wi-Fi or a hotspot).
 
+## Demonstration timing
+
+The dashboard polls every 500 ms and refreshes status every 250 ms, with no
+overlapping poll requests. Firmware uploads every second in `DEMO_MODE` and
+stays awake while stationary. Set `DEMO_MODE=false` in `tracker/tracker.ino`
+to restore two-second uploads and the existing inactivity sleep behaviour.
+GPS positions still depend on the receiver's actual fix rate; polling faster
+does not create new GPS fixes. Drift filtering and three-fix alerts stay enabled.
+The default Firestore database is provisioned in Mumbai (`asia-south1`) with
+production rules denying direct client reads and writes.
+
 ## Deployment configuration
 
 - Runtime: Python 3.12 (the latest patch is selected by `.python-version`).

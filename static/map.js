@@ -526,7 +526,8 @@ el('geofence-form').onsubmit = async event => {
 // ─────────────────────────────────────────────────────────────────────────────
 // Tick loops
 // ─────────────────────────────────────────────────────────────────────────────
-setInterval(poll,         2000);
-setInterval(renderStatus, 1000);
+// Demo cadence: poll twice per second; busy prevents overlapping requests.
+setInterval(poll,          500);
+setInterval(renderStatus,  250);
 
 restoreLogin();

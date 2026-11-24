@@ -68,7 +68,8 @@ constexpr int SCL_PIN    = 6;   // XIAO D5
 //  TIMING & QUALITY THRESHOLDS
 // =============================================================================
 constexpr uint32_t FRESH_MS        = 3000;   // max GPS fix age (ms)
-constexpr uint32_t UPLOAD_MS       = 2000;   // upload interval while moving (ms)
+constexpr bool     DEMO_MODE       = true;   // keep awake for demonstrations
+constexpr uint32_t UPLOAD_MS       = DEMO_MODE ? 1000 : 2000;
 constexpr uint32_t SENSOR_MS       = 50;     // IMU polling interval (ms)
 constexpr double   MAX_HDOP        = 5.0;    // max acceptable HDOP
 constexpr uint32_t MIN_SATELLITES  = 4;      // min satellites for good fix
@@ -682,7 +683,7 @@ void loop() {
       inactiveStart      = now;
       inactivityTracking = true;
     }
-    if (uint32_t(now - inactiveStart) >= INACTIVITY_MS) {
+    if (!DEMO_MODE && uint32_t(now - inactiveStart) >= INACTIVITY_MS) {
       Serial.println("4-min inactivity threshold reached — entering deep sleep (10 min).");
 
       // Push one final status update before sleeping
